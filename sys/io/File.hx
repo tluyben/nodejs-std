@@ -2,6 +2,68 @@ package sys.io;
 
 import js.Node;
 
+import haxe.io.Eof;
+
+class NodeFileInput extends FileInput 
+{
+	private var stream:Int; 
+	private var binary:Bool;
+	public function new(stream:Int, ?binary : Bool )
+	{
+		this.binary = binary; 
+		this.stream = stream;
+	}
+
+	override public function readByte():Int
+	{
+		var ret = 0;
+		
+		var bytes = haxe.io.Bytes.alloc(1);
+		Node.fs.readSync(this.stream, bytes.getData(), 0, 1, null);
+		ret = bytes.get(0);
+		
+		if ( ret == -1 )
+			throw new Eof();
+		return ret;
+	}
+
+	
+	override public function close():Void
+	{
+		Node.fs.closeSync(this.stream);
+
+	}
+
+
+}
+class NodeFileOutput extends FileOutput 
+{
+	private var stream:Int; 
+	private var binary:Bool;
+	public function new(stream:Int, ?binary : Bool )
+	{
+		this.stream = stream;
+		this.binary = binary;
+	}
+
+
+	override public function close():Void
+	{
+		Node.fs.closeSync(this.stream);
+	}
+
+
+	override public function writeByte(c:Int):Void
+	{
+
+		var bytes = haxe.io.Bytes.alloc(1);
+		bytes.set(0, c);
+                Node.fs.writeSync(this.stream, bytes.getData(), 0, 1, null);
+
+	}
+
+}
+
 class File
 {
 	public static function append( path : String, ?binary : Bool ) : FileOutput
@@ -36,16 +98,16 @@ class File
 		return Node.fs.readFileSync(path, UTF8_ENCODING);
 	}
 	
-	// public static function read( path : String, ?binary : Bool ) : FileInput
+	public static function read( path : String, ?binary : Bool ) : FileInput
+	{
+		return new NodeFileInput(Node.fs.openSync(path, "r"), binary);
+	}
+	
+	// public static function saveBytes( path : String, bytes : Bytes ) : Void
 	// {
 	// 	throw "Not implemented";
 	// 	return null;
 	// }
-	
-	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void
-	{
-		Node.fs.writeFileSync(path, bytes.getData());
-	}
 	
 	public static function saveContent( path : String, content : String ) : Void
 	{
@@ -54,8 +116,7 @@ class File
 	
 	public static function write( path : String, ?binary : Bool ) : FileOutput
 	{
-		throw "Not implemented";
-		return null;
+		return new NodeFileOutput(Node.fs.openSync(path, "w"), binary);
 	}
 	
 	private static var UTF8_ENCODING = {encoding:NodeC.UTF8};
